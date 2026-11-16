@@ -47,6 +47,8 @@
 | M2-T14 | 插件版本可见：每次改动升版本号，`doctor` 暴露 version | ☑ | AC-22 | 0.1.0 → 0.3.0；CHANGELOG 记录三批变更；单测断言 doctor.version == package.json | 2026-11-17 |
 | M2-T15 | 掩码统计进 predict 响应，配套「用数字校验」指导 | ☑ | AC-23 | 真机返回 coverage/alpha 极值/bbox/触边；skill 限定 read_image 仅三种例外 | 2026-11-17 |
 | M2-T16 | 抠像成本治理：读图上限、runtime python、原位置二义性、undefined 目录防御 | ☑ | AC-24 | 会话复盘：6 次读图 + 1 次 PIL 失败 → 三项规则 + 插件兜底 | 2026-11-17 |
+| AC-25 | skill 不再无限增长 | ☑ | 冻结注记 + AGENTS 三条判定（改措辞可防/需会话证据/净增≤300B）| 
+| M2-T17 | skill 冻结：只对新类型失败加规则 | ☑ | AC-25 | 基线 v0.6.1 / 9,019 字节；判定标准三条写入 AGENTS.md | 2026-11-17 |
 | M2-T3 | 解决 K5：`POST /upload` + `upload_id` 入参 | ☑ | AC-08 | 25 单测；上传 228KB 原图 → `upload_id` → DSH 原生工具分割成功 4.23s | 2026-11-16 |
 | M2-T4 | 解决 K6：掩码落盘 + `GET /artifacts/<id>`，响应只给相对 URL | ☑ | AC-10 | 响应由约 31 KB base64 降到约 250 B；下载到合法 PNG 640×640 | 2026-11-16 |
 
