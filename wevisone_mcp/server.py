@@ -176,14 +176,26 @@ def _load_image(image_base64: str, upload_id: str) -> Any:
     return _decode_image(image_base64)
 
 
+def _quantize_alpha(mask: Any) -> Any:
+    """Float alpha (0-1) -> uint8 alpha, without the classic 254 trap.
+
+    ``(mask * 255).astype(uint8)`` truncates, so a sigmoid that peaks at 0.996 lands on
+    254 and the whole subject is 99.6% opaque -- visibly washed out once composited on
+    another background. Round instead, and treat near-1 as exactly opaque.
+    """
+    import numpy as np
+
+    clipped = np.clip(np.asarray(mask, dtype=np.float32), 0.0, 1.0)
+    clipped = np.where(clipped >= 0.995, 1.0, clipped)
+    return np.rint(clipped * 255.0).astype("uint8")
+
+
 def _mask_png_bytes(mask: Any) -> bytes:
     """Render one float alpha map (0-1) as PNG bytes."""
-    import numpy as np
     from PIL import Image
 
-    array = (np.clip(mask, 0.0, 1.0) * 255).astype("uint8")
     buffer = io.BytesIO()
-    Image.fromarray(array, mode="L").save(buffer, format="PNG")
+    Image.fromarray(_quantize_alpha(mask), mode="L").save(buffer, format="PNG")
     return buffer.getvalue()
 
 
@@ -196,7 +208,9 @@ def _mask_stats(mask: Any) -> dict[str, Any]:
     """
     import numpy as np
 
-    alpha = np.clip(np.asarray(mask, dtype=np.float32), 0.0, 1.0)
+    # Measure the quantized map, not the float: stats must describe the file the
+    # caller actually receives (that is where the 254 surprise came from).
+    alpha = _quantize_alpha(mask).astype(np.float32) / 255.0
     coverage = float((alpha >= 0.05).mean())
     stats: dict[str, Any] = {
         "alpha_min": round(float(alpha.min()), 3),
@@ -232,6 +246,77 @@ def _mask_stats(mask: Any) -> dict[str, Any]:
     if problems:
         stats["problems"] = problems
     return stats
+
+
+def _compose_cutouts(
+    image: Any,
+    masks: Any,
+    mode: str,
+) -> list[dict[str, Any]]:
+    """Composite the source image with its mattes and publish ready RGBA PNGs.
+
+    ``mode``: ``"union"`` merges every matte into one subject; ``"each"`` keeps one
+    cutout per matte (named by index). Each is published twice -- the full canvas
+    (subject keeps its position) and a tight crop at the same 5% threshold used by
+    ``stats.bbox``. Doing this on the server removes any client-side compositing,
+    resample guesswork, and 254-style alpha hacking.
+    """
+    import numpy as np
+    from PIL import Image
+
+    if not masks:
+        return []
+    source = image.convert("RGBA")
+    width, height = source.size
+
+    prepared = []
+    for mask in masks:
+        layer = Image.fromarray(_quantize_alpha(mask), mode="L")
+        if layer.size != (width, height):
+            layer = layer.resize((width, height), Image.LANCZOS)
+        prepared.append(np.asarray(layer, dtype=np.uint8))
+
+    groups: list[tuple[str, Any]] = []
+    if mode == "union":
+        groups.append(("merged", np.maximum.reduce(prepared)))
+    else:
+        for index, layer in enumerate(prepared):
+            groups.append((f"object-{index}", layer))
+
+    cutouts: list[dict[str, Any]] = []
+    for name, alpha in groups:
+        layer = Image.fromarray(alpha, mode="L")
+        full = source.copy()
+        full.putalpha(layer)
+
+        rows, cols = np.nonzero(alpha >= 13)  # same 5% threshold as stats.bbox
+        tight = None
+        if cols.size:
+            box = (int(cols.min()), int(rows.min()), int(cols.max()) + 1, int(rows.max()) + 1)
+            tight = full.crop(box)
+        else:
+            box = None
+
+        for variant, picture in (("full", full), ("tight", tight)):
+            if picture is None:
+                continue
+            buffer = io.BytesIO()
+            picture.save(buffer, format="PNG", optimize=True)
+            png = buffer.getvalue()
+            artifact_id, size = uploads.store_upload(ARTIFACT_DIR, png)
+            cutouts.append(
+                {
+                    "name": name,
+                    "variant": variant,
+                    "url": f"{ARTIFACT_PATH}/{artifact_id}",
+                    "bytes": size,
+                    "content_type": "image/png",
+                    "size": [picture.width, picture.height],
+                    # inclusive like stats.bbox, so the two fields agree
+                    "bbox": [box[0], box[1], box[2] - 1, box[3] - 1] if box else None,
+                }
+            )
+    return cutouts
 
 
 def _publish_artifacts(masks: Any) -> list[dict[str, Any]]:
@@ -285,6 +370,7 @@ def run_predict(
     task: str = "detection",
     query: str = "",
     max_new_tokens: int = 0,
+    compose: str = "",
 ) -> dict[str, Any]:
     """Shared implementation for the MCP tool and ``POST /predict``.
 
@@ -299,6 +385,7 @@ def run_predict(
                 "task": task,
                 "query": query,
                 "max_new_tokens": max_new_tokens,
+                "compose": compose,
             }.items() if value not in ("", 0, None)}
             status, raw = _remote_request(
                 PREDICT_PATH,
@@ -322,12 +409,14 @@ def run_predict(
             )
         elapsed = time.perf_counter() - started
         artifacts = _publish_artifacts(result.masks)
+        cutouts = _compose_cutouts(image, result.masks, compose) if compose else []
         return shaping.shape_result(
             task=task,
             query=query,
             response=result.response,
             boxes=result.boxes,
             artifacts=artifacts,
+            cutouts=cutouts,
             latency_s=elapsed,
         )
     except Exception as exc:  # boundary: translate to a caller-safe payload
@@ -351,6 +440,7 @@ def wevisone_predict(
     task: str = "detection",
     query: str = "",
     max_new_tokens: int = 0,
+    compose: str = "",
 ) -> str:
     return _json(
         run_predict(
@@ -359,6 +449,7 @@ def wevisone_predict(
             task=task,
             query=query,
             max_new_tokens=max_new_tokens,
+            compose=compose,
         )
     )
 
@@ -512,7 +603,7 @@ def build_app() -> Any:
         if not isinstance(request, dict):
             await send_json(send, 400, {"ok": False, "error": "body must be a JSON object"})
             return
-        allowed = {"upload_id", "image_base64", "task", "query", "max_new_tokens"}
+        allowed = {"upload_id", "image_base64", "task", "query", "max_new_tokens", "compose"}
         unexpected = sorted(set(request) - allowed)
         if unexpected:
             await send_json(

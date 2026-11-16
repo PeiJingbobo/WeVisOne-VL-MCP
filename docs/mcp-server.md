@@ -271,6 +271,10 @@ curl -s -X POST -H "Authorization: Bearer $TOK" -H "Content-Type: application/js
 
 - 坐标归一化 0–1；目标不存在时 `rejected: true` 且 `boxes` 为空
 - 掩码不内联，只给相对 URL（10 分钟过期）
+- `compose: "union" | "each"` 让服务端直接合成 RGBA 抠图，响应多一个
+  `cutouts[]`（`variant: full | tight`，带 `size` 与 `bbox`）；客户端无需再写图像脚本
+- 掩码与抠图的 alpha 都经 `rint` + 近 1 归 1 量化，内部是真正的 255，
+  不会出现「整图 254 发灰」（旧实现 `astype(uint8)` 截断所致）
 - `stats` 是服务端对掩码的统计（覆盖度、alpha 极值、包围盒、是否触边），外加
   `verdict`（`ok` / `suspect` + `problems`）—— 调用方比一次字符串就知道掩码能不能用，
   **不需要下载并查看图片**

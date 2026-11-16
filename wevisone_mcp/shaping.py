@@ -104,6 +104,7 @@ def shape_result(
     response: str,
     boxes: Sequence[Sequence[float]],
     artifacts: Sequence[dict[str, Any]] | None = None,
+    cutouts: Sequence[dict[str, Any]] | None = None,
     latency_s: float | None = None,
 ) -> dict[str, Any]:
     """Build the JSON payload returned by every MCP tool.
@@ -131,6 +132,9 @@ def shape_result(
     if artifacts:
         payload["artifacts"] = list(artifacts)
         payload["artifact_count"] = len(artifacts)
+    if cutouts:
+        payload["cutouts"] = list(cutouts)
+        payload["cutout_count"] = len(cutouts)
     if latency_s is not None:
         payload["latency_s"] = round(float(latency_s), 3)
     return payload
