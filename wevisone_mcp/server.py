@@ -187,6 +187,37 @@ def _mask_png_bytes(mask: Any) -> bytes:
     return buffer.getvalue()
 
 
+def _mask_stats(mask: Any) -> dict[str, Any]:
+    """Summarise one matte so callers can judge it without looking at an image.
+
+    Opening the PNG costs a full image in the caller's context; these numbers cost a
+    few dozen bytes and catch every failure that matters (empty matte, wrong object,
+    clipped subject, weak alpha).
+    """
+    import numpy as np
+
+    alpha = np.clip(np.asarray(mask, dtype=np.float32), 0.0, 1.0)
+    coverage = float((alpha >= 0.05).mean())
+    stats: dict[str, Any] = {
+        "alpha_min": round(float(alpha.min()), 3),
+        "alpha_max": round(float(alpha.max()), 3),
+        "alpha_mean": round(float(alpha.mean()), 4),
+        "coverage": round(coverage, 4),
+        "size": [int(alpha.shape[1]), int(alpha.shape[0])],
+        "bbox": None,
+    }
+    rows, cols = np.nonzero(alpha >= 0.05)
+    if cols.size:
+        stats["bbox"] = [int(cols.min()), int(rows.min()), int(cols.max()), int(rows.max())]
+        stats["touches_edge"] = bool(
+            cols.min() == 0 or rows.min() == 0
+            or cols.max() == alpha.shape[1] - 1 or rows.max() == alpha.shape[0] - 1
+        )
+    else:
+        stats["touches_edge"] = False
+    return stats
+
+
 def _publish_artifacts(masks: Any) -> list[dict[str, Any]]:
     """Write each mask under an unguessable id and describe it for the caller.
 
@@ -204,6 +235,7 @@ def _publish_artifacts(masks: Any) -> list[dict[str, Any]]:
                 "url": f"{ARTIFACT_PATH}/{artifact_id}",
                 "bytes": size,
                 "content_type": "image/png",
+                "stats": _mask_stats(mask),
             }
         )
     if artifacts:
