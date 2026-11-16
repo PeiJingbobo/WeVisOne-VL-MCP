@@ -45,6 +45,8 @@
 | M2-T12 | 让模型优先用工具而非自带视觉（三层：描述/提醒/skill） | ☑ | AC-20 | 真实会话验证：空上下文先加载 skill 再调工具，未用自带视觉答题 | 2026-11-17 |
 | M2-T13 | 抠像会话复盘后的四项修：save_dir 生效、homedir 跨平台、任务选择、合成配方 | ☑ | AC-21 | `test/save-dir.mjs` 9 项断言；真机 segmentation+save_dir 7.2s 落盘 | 2026-11-17 |
 | M2-T14 | 插件版本可见：每次改动升版本号，`doctor` 暴露 version | ☑ | AC-22 | 0.1.0 → 0.3.0；CHANGELOG 记录三批变更；单测断言 doctor.version == package.json | 2026-11-17 |
+| M2-T15 | 掩码统计进 predict 响应，配套「用数字校验」指导 | ☑ | AC-23 | 真机返回 coverage/alpha 极值/bbox/触边；skill 限定 read_image 仅三种例外 | 2026-11-17 |
+| M2-T16 | 抠像成本治理：读图上限、runtime python、原位置二义性、undefined 目录防御 | ☑ | AC-24 | 会话复盘：6 次读图 + 1 次 PIL 失败 → 三项规则 + 插件兜底 | 2026-11-17 |
 | M2-T3 | 解决 K5：`POST /upload` + `upload_id` 入参 | ☑ | AC-08 | 25 单测；上传 228KB 原图 → `upload_id` → DSH 原生工具分割成功 4.23s | 2026-11-16 |
 | M2-T4 | 解决 K6：掩码落盘 + `GET /artifacts/<id>`，响应只给相对 URL | ☑ | AC-10 | 响应由约 31 KB base64 降到约 250 B；下载到合法 PNG 640×640 | 2026-11-16 |
 
@@ -74,6 +76,8 @@
 | AC-20 | 工具优先于自带视觉 | ☑ | 会话日志：第 1 步 `skill` + `wevisone_doctor`，第 2 步直接 `wevisone_predict`；三次 `read_image` 均为校验产物 |
 | AC-21 | 抠像四项修全部生效 | ☑ | `save_dir` 覆盖 maskDir（单测 9 项 + 真机 7.2s）；默认目录改 `os.homedir()`；skill 增 segmentation 优先、多掩码取最大、`putalpha` 配方 |
 | AC-22 | 能判断插件是否真的重装 | ☑ | `wevisone_doctor` 返回 `version`；`test/save-dir.mjs` 断言与 `package.json` 一致（11 项断言全过）；AGENTS 立为规则 |
+| AC-23 | 掩码可用性可只靠文本判断 | ☑ | `stats` 含 coverage/alpha/bbox/touches_edge；skill 给出区间与三例外 |
+| AC-24 | 抠像读图 ≤1 次、无 python 选错、原位置二义性一次覆盖 | ☑ | 0.4.1 skill + `maskDir` 含 `undefined` 时警告并回退（已用假 ctx 验证） |
 
 ## 4. UI 验收映射
 
