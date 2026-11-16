@@ -24,8 +24,15 @@
 它用 `ctx.tools.register()` 注册 DSH 原生工具，用普通 HTTP REST 通信，不经过 MCP 的 JSON-RPC。
 要用 MCP 协议本身（比如给别的 agent 用），走 [mcp-server.md](mcp-server.md)。
 
-插件同时注册一个 **`wevisone-vision` skill**，在模型动手前告诉它 11 个任务怎么选、
-返回字段怎么读、有哪些坑。
+为了让模型**优先用工具而不是它自己的多模态视觉**，插件做了三层：
+
+| 手段 | 生效时机 |
+|---|---|
+| 工具描述里的 "PREFER THIS over your own image understanding" | 常驻 |
+| `agent/pre-step` 注入的持久 user 消息（每会话一次） | 常驻，不依赖加载 |
+| `wevisone-vision` skill（任务矩阵、字段含义、坑） | 模型加载后 |
+
+只靠 skill 不够——skill 得模型主动加载；持久提醒才保证「别用自带视觉」这条规则每轮都在。
 
 ---
 
