@@ -20,6 +20,13 @@
 
 **它本身不跑模型**：仍然连一台 WeVisOne-VL 服务（本地模式或远端模式的 MCP 服务器都可以）。
 
+**它不是 MCP 客户端。** 名称里的 `mcp` 指的是它连接的服务（WeVisOne-VL-MCP）。
+它用 `ctx.tools.register()` 注册 DSH 原生工具，用普通 HTTP REST 通信，不经过 MCP 的 JSON-RPC。
+要用 MCP 协议本身（比如给别的 agent 用），走 [mcp-server.md](mcp-server.md)。
+
+插件同时注册一个 **`wevisone-vision` skill**，在模型动手前告诉它 11 个任务怎么选、
+返回字段怎么读、有哪些坑。
+
 ---
 
 ## 2. 前置
@@ -102,6 +109,18 @@ node scripts/check_dsh_yaml.mjs            # 默认检查 desktop profile
 ---
 
 ## 4. 验证
+
+重启后除了两个工具，技能目录里还应该多一个 **`wevisone-vision`**：
+
+| 位置 | 应有的东西 |
+|---|---|
+| 工具列表 | `wevisone_predict`、`wevisone_doctor` |
+| 技能目录 | `wevisone-vision`（描述里会提到 WeVisOne-VL 与本机图片路径） |
+
+技能是指导材料，模型在调用前会读它。只看到工具没有技能，说明 profile 缺 `skills` 服务
+（通常由 `@deepseek-ai/dsh-base` 提供）。
+
+
 
 重启后工具列表里应出现两个**不带 `mcp__` 前缀**的工具：
 
