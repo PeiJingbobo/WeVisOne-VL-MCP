@@ -153,7 +153,7 @@ Python `snake_case`；MCP 工具名统一 `wevisone_` 前缀；环境变量统�
 - REST 逃生门：`POST /predict`（JSON 入参同工具，返回同样的 JSON）供插件与非 MCP 客户端使用；与工具共用 `run_predict()`，不得各写一套。
 - `boxes` 必须有值：引擎结果优先，为空且无掩码时由 `shaping.parse_boxes()` 从 `response` 回退解析（上游 `parse_seg_boxes` 只认 `<OBJ>`，会把纯检测回答的框丢掉）；像素任务不回退，保持与 `artifacts` 对齐。
 - 两种角色：本地模式加载模型；设置 `WEVISONE_REMOTE_URL` 后进入远端模式，`/mcp` `/predict` `/upload` `/artifacts` 全部转发且**不得**导入 torch。
-- **`wevisone-vision` skill 已冻结（2026-11-17，v0.6.1，9,019 字节）。** 只在出现**新类型失败**时
+- **`wevisone-vision` skill 已冻结（2026-11-17，v0.6.2，9,168 字节）。** 只在出现**新类型失败**时
   才允许加规则。判定标准（三条全中才算新类型）：
   1. 已有规则**改个措辞就能防住**的，属于变体，不许加新规则；
   2. 能给出一次真实会话证据，说明模型**按现有规则做了却仍然失败**；
