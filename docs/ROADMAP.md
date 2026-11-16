@@ -41,6 +41,7 @@
 | M2-T8 | 开机自启：Windows 计划任务 + Linux systemd，均支持注册/注销/状态 | ☑ | AC-16 | Windows 真机：`MSFT_TaskBootTrigger` + SYSTEM + 活体 200；Linux 四条路径用假 systemctl 垫片验证 | 2026-11-16 |
 | M2-T9 | 原生插件正式装进 desktop profile（出现在插件列表） | ☑ | AC-17 | 包已进 `dependencies` + `dsh.profile.bundles` + `node_modules`；配置按 id 注入；校验器通过 | 2026-11-16 |
 | M2-T10 | 拆分文档 + MCP server 远端模式（代理到 GPU 机） | ☑ | AC-18 | 新增 `docs/mcp-server.md`、`docs/dsh-plugin.md`、README 改索引；远端转发 6 项单测通过 | 2026-11-16 |
+| M2-T11 | 双仓库管理：主仓库 + 插件子模块，插件支持仓库地址直装 | ☑ | AC-19 | `dsh plugin add github:PeiJingbobo/dsh-wevisone-mcp-plugin`；包名去 `@wevisone`；index.js 在仓库根 | 2026-11-16 |
 | M2-T3 | 解决 K5：`POST /upload` + `upload_id` 入参 | ☑ | AC-08 | 25 单测；上传 228KB 原图 → `upload_id` → DSH 原生工具分割成功 4.23s | 2026-11-16 |
 | M2-T4 | 解决 K6：掩码落盘 + `GET /artifacts/<id>`，响应只给相对 URL | ☑ | AC-10 | 响应由约 31 KB base64 降到约 250 B；下载到合法 PNG 640×640 | 2026-11-16 |
 
@@ -66,6 +67,7 @@
 | AC-16 | 两平台都能注册/注销开机自启 | ☑ | Windows `-AtStartup` → `MSFT_TaskBootTrigger`/SYSTEM/端口活；`-NoAutostart` → 触发器归零；普通重启不冲掉自启。Linux install/uninstall/status/提权守卫四路径通过 |
 | AC-17 | 插件出现在 profile 插件列表 | ☑ | 重启后宿主暴露 `wevisone_predict`/`wevisone_doctor`（带 `image_path` 参数的插件版 schema），证明 bundle 已装载并注册成功 |
 | AC-18 | MCP 文档可独立部署；远端模式可用 | ☑ | 真机 E2E：9000 代理→8000 本地服务，`predict ok=True boxes=[0.03,0.454,0.964,0.876] 6.07s`、`artifact HTTP 200 / 23538 B`、`upload ok=True 228868 B`； `docs/mcp-server.md` 覆盖 GPU 机启动/远端代理/自启注册卸载/各 agent 接入/REST/CLI/环境变量/排障；`tests/test_remote_mode.py` 6 项通过（转发、错误透传、本地校验先行、artifacts 拉取、不可达提示） |
+| AC-19 | 两仓库可克隆、插件可按仓库地址安装 | ☑ | 主仓库 30 个文件 + 子模块指针已推送；插件仓库 6 个文件（index.js 在根、零依赖）；本地 profile 切到新包名后解析与加载均通过 |
 
 ## 4. UI 验收映射
 
@@ -95,6 +97,7 @@
 | 2026-11-16 | DSH agent | **事故**：`!!js` 单引号漏闭合导致 DSH 启动失败；修复配置 + 新增 `scripts/check_dsh_yaml.mjs` 校验器 | K11 登记；配置已用真实 YAML 解析器验证 | 待用户重启复验 |
 | 2026-11-16 | DSH agent | M2-T9：插件装成 profile bundle；插件改为零依赖普通定义对象 | 校验通过；K12 登记；待重启复验 |
 | 2026-11-16 | DSH agent | M2-T10：MCP 远端模式 + 两份独立文档 + README 索引化 | AC-18 通过 | 待真机端到端复验 |
+| 2026-11-16 | DSH agent | M2-T11：主仓库推送、插件仓库独立、子模块挂载、包名改名 | AC-19 通过；待用户重启验证插件仍在 |
 
 ## 7. 文档漂移与实现偏差
 
