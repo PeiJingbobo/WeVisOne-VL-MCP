@@ -212,7 +212,7 @@ sudo ./scripts/service.sh uninstall    # 用户级去掉 sudo
         transport: streamable-http
         url: http://192.168.1.12:8000/mcp
         headers:
-          Authorization: !!js '`Bearer ${process.env.WEVISONE_MCP_TOKEN || process.getBuiltinModule("node:fs").readFileSync(process.env.HOME + "/.dsh/wevisone-token", "utf8").trim()}`'
+          Authorization: !!js '`Bearer ${process.env.WEVISONE_MCP_TOKEN || process.getBuiltinModule("node:fs").readFileSync(process.getBuiltinModule("node:os").homedir() + "/.dsh/wevisone-token", "utf8").trim()}`'
         toolCallTimeoutMs: 120000
         reconnect:
           enabled: true

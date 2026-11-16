@@ -42,6 +42,8 @@
 | M2-T9 | 原生插件正式装进 desktop profile（出现在插件列表） | ☑ | AC-17 | 包已进 `dependencies` + `dsh.profile.bundles` + `node_modules`；配置按 id 注入；校验器通过 | 2026-11-16 |
 | M2-T10 | 拆分文档 + MCP server 远端模式（代理到 GPU 机） | ☑ | AC-18 | 新增 `docs/mcp-server.md`、`docs/dsh-plugin.md`、README 改索引；远端转发 6 项单测通过 | 2026-11-16 |
 | M2-T11 | 双仓库管理：主仓库 + 插件子模块，插件支持仓库地址直装 | ☑ | AC-19 | `dsh plugin add github:PeiJingbobo/dsh-wevisone-mcp-plugin`；包名去 `@wevisone`；index.js 在仓库根 | 2026-11-16 |
+| M2-T12 | 让模型优先用工具而非自带视觉（三层：描述/提醒/skill） | ☑ | AC-20 | 真实会话验证：空上下文先加载 skill 再调工具，未用自带视觉答题 | 2026-11-17 |
+| M2-T13 | 抠像会话复盘后的四项修：save_dir 生效、homedir 跨平台、任务选择、合成配方 | ☑ | AC-21 | `test/save-dir.mjs` 9 项断言；真机 segmentation+save_dir 7.2s 落盘 | 2026-11-17 |
 | M2-T3 | 解决 K5：`POST /upload` + `upload_id` 入参 | ☑ | AC-08 | 25 单测；上传 228KB 原图 → `upload_id` → DSH 原生工具分割成功 4.23s | 2026-11-16 |
 | M2-T4 | 解决 K6：掩码落盘 + `GET /artifacts/<id>`，响应只给相对 URL | ☑ | AC-10 | 响应由约 31 KB base64 降到约 250 B；下载到合法 PNG 640×640 | 2026-11-16 |
 
@@ -68,6 +70,8 @@
 | AC-17 | 插件出现在 profile 插件列表 | ☑ | 重启后宿主暴露 `wevisone_predict`/`wevisone_doctor`（带 `image_path` 参数的插件版 schema），证明 bundle 已装载并注册成功 |
 | AC-18 | MCP 文档可独立部署；远端模式可用 | ☑ | 真机 E2E：9000 代理→8000 本地服务，`predict ok=True boxes=[0.03,0.454,0.964,0.876] 6.07s`、`artifact HTTP 200 / 23538 B`、`upload ok=True 228868 B`； `docs/mcp-server.md` 覆盖 GPU 机启动/远端代理/自启注册卸载/各 agent 接入/REST/CLI/环境变量/排障；`tests/test_remote_mode.py` 6 项通过（转发、错误透传、本地校验先行、artifacts 拉取、不可达提示） |
 | AC-19 | 两仓库可克隆、插件可按仓库地址安装 | ☑ | 主仓库 30 个文件 + 子模块指针已推送；插件仓库 6 个文件（index.js 在根、零依赖）；本地 profile 切到新包名后解析与加载均通过 |
+| AC-20 | 工具优先于自带视觉 | ☑ | 会话日志：第 1 步 `skill` + `wevisone_doctor`，第 2 步直接 `wevisone_predict`；三次 `read_image` 均为校验产物 |
+| AC-21 | 抠像四项修全部生效 | ☑ | `save_dir` 覆盖 maskDir（单测 9 项 + 真机 7.2s）；默认目录改 `os.homedir()`；skill 增 segmentation 优先、多掩码取最大、`putalpha` 配方 |
 
 ## 4. UI 验收映射
 
@@ -98,6 +102,7 @@
 | 2026-11-16 | DSH agent | M2-T9：插件装成 profile bundle；插件改为零依赖普通定义对象 | 校验通过；K12 登记；待重启复验 |
 | 2026-11-16 | DSH agent | M2-T10：MCP 远端模式 + 两份独立文档 + README 索引化 | AC-18 通过 | 待真机端到端复验 |
 | 2026-11-16 | DSH agent | M2-T11：主仓库推送、插件仓库独立、子模块挂载、包名改名 | AC-19 通过；待用户重启验证插件仍在 |
+| 2026-11-17 | DSH agent | M2-T12/T13：工具优先三层施压 + 抠像四项修 | AC-20/AC-21 通过；K13 登记 |
 
 ## 7. 文档漂移与实现偏差
 
@@ -121,6 +126,7 @@
 | K10 | 改 `cordis.patch.yml` 后 MCP 工具的 headers 不更新，需重启 DSH | 轮换令牌后必须手动重启客户端 | `dsh-mcp-client:47` 在连接建立时固定 headers，loader 不 watch 文件。文档已写明；未做自动重启 |
 | K11 | 手改 `cordis.patch.yml` 出错会让 DSH 直接起不来（不是插件失败，是加载器拒绝） | 一次笔误就要用户手忙脚乱 | 已加 `scripts/check_dsh_yaml.mjs`：改完先跑，正反用例都验过 |
 | K12 | DSH 运行时跑 `pnpm install` 会无输出卡死（桌面宿主持有 pnpm store 锁） | 装插件看起来像挂了 | 已改为手动解包安装；README 写明运行时不要用 pnpm |
+| K13 | `matting` 会对每个 `<OBJ>` 解一张掩码，单次可能数十秒 | 多实例图慢 | skill 已引导单目标用 `segmentation`；未加目标数上限 |
 
 ## 9. 变更记录
 

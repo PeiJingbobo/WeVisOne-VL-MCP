@@ -81,8 +81,8 @@ pnpm install --dir $PROFILE          # 先退出 DSH，见 §7
 - id: dsh-wevisone-mcp-plugin
   config:
     endpoint: http://192.168.1.12:8000
-    token: !!js '`${process.env.WEVISONE_MCP_TOKEN || process.getBuiltinModule("node:fs").readFileSync(process.env.HOME + "/.dsh/wevisone-token", "utf8").trim()}`'
-    maskDir: !!js '`${process.env.HOME}/wevisone-masks`'
+    token: !!js '`${process.env.WEVISONE_MCP_TOKEN || process.getBuiltinModule("node:fs").readFileSync(process.getBuiltinModule("node:os").homedir() + "/.dsh/wevisone-token", "utf8").trim()}`'
+    maskDir: !!js '`${process.getBuiltinModule("node:os").homedir()}/wevisone-masks`'
     timeoutMs: 180000
 ```
 
@@ -90,7 +90,7 @@ pnpm install --dir $PROFILE          # 先退出 DSH，见 §7
 |---|---|---|
 | `endpoint` | `http://127.0.0.1:8000` | 服务地址 |
 | `token` | `$WEVISONE_MCP_TOKEN` | 共享令牌；建议像上面那样从 0600 文件读 |
-| `maskDir` | `<cwd>/wevisone-artifacts` | 掩码落盘目录 |
+| `maskDir` | `<家目录>/wevisone-artifacts` | 掩码**默认**目录；单次调用可用 `save_dir` 覆盖 |
 | `timeoutMs` | `180000` | 单次请求超时 |
 
 令牌文件：
