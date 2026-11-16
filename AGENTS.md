@@ -11,9 +11,10 @@
 封装成标准 MCP server，让任何 MCP 客户端（DeepSeek Harness 等）通过 HTTP 直接调用。
 
 **当前状态**（详见 `docs/ROADMAP.md`）
-- M1 进行中：MCP server 骨架与工具面
+- **已进入生产实测**：MCP server + DSH 插件 v0.6.2 在真实任务中迭代；`wevisone-vision` skill **已冻结**
 - 上游 WeVisOne-VL **不改动**：本仓库只做封装层
-- 运行位置：代码在 Mac 编写，server 跑在 Windows 主机 `dell-16-plus`
+- 运行位置：代码在 Mac 编写，server 跑在 Windows 主机 `dell-16-plus`（GPU），插件跑在用户 Windows PC
+- 接手生产问题直接读 **§7**
 
 **先记住这几条**
 1. 上游 `WeVisOne-VL` 是只读依赖，任何时候都不修改它。
@@ -207,8 +208,86 @@ unittest（Mac 纯逻辑） → 真机 MCP 客户端自检 → 客户端工具�
 5. ❌ 无令牌把服务绑定到 `0.0.0.0`。
 6. ❌ 一轮领多个任务。
 
+## 7. 生产运行与实测迭代
+
+**给「没有上文的新会话」看的**：这一段自成闭环，照它就能接手一次生产问题。
+
+### 7.1 部署矩阵（三处，别搞混）
+
+| 角色 | 机器 | 位置 | 版本怎么查 |
+|---|---|---|---|
+| 模型服务 | `dell-16-plus`（RTX 3060 Laptop 6GB，LAN `192.168.1.12:8000`） | `C:\Users\PeiJingbo\MyCode\WeVisOne-VL-MCP`；计划任务 `WeVisOneMCP`，**开机自启**（SYSTEM） | 无版本号，跟仓库走 |
+| DSH 插件 | **用户 Windows PC**（DSH 所在） | `~/.dsh/profiles/desktop/node_modules/dsh-wevisone-mcp-plugin` | `wevisone_doctor` 的 `version` |
+| 发版源 | GitHub | `PeiJingbobo/WeVisOne-VL-MCP` + submodule `dsh-wevisone-mcp-plugin` | `package.json` |
+
+⚠️ **附件与产物在用户 PC，不在 GPU 机。** 去 `dell-16-plus` 找 `Downloads\P5.webp` 会找不到。
+
+### 7.2 每轮实测的固定动作
+
+```
+开始时：wevisone_doctor({"reset": true})     # 记基线并清零
+结束时：wevisone_doctor()                    # 读本轮 predict_calls / total_latency_s
+```
+
+`version` 对不上 = 没装上、或装了没重启 DSH（配置和插件都在启动时读）。
+
+### 7.3 复盘必须有三样证据，缺一不可
+
+| # | 证据 | 用途 |
+|---|---|---|
+| 1 | `session.v4.jsonl` 路径 | 数调用次数、看有没有 `read_image` |
+| 2 | `wevisone_doctor` 返回 | 版本 + 本轮耗时/失败/拒绝计数 |
+| 3 | **产出文件原件（不要截图）** | 质量只能用像素判断，截图会失真 |
+
+缺第 3 样就只能猜；猜出来的「修好了」不算验证。
+
+### 7.4 归因顺序（不许跳级）
+
+1. **服务端 bug** —— 能用像素或数值证伪的（例：alpha 截断成 254）。优先级最高。
+2. **插件 bug** —— 参数没生效、路径错、返回结构不符（例：`save_dir` 只声明不实现）。
+3. **skill 规则** —— 只有**新类型失败**且满足 §4.3 的三条判定才动；变体一律改措辞。
+
+### 7.5 已知边界（是特性，不是 bug）
+
+| 现象 | 原因 | 应对 |
+|---|---|---|
+| 并发任务变慢 | 6 GB VRAM，`_infer_lock` 串行推理 | 排队，别并发压 |
+| 大图细节丢失 | 服务端先缩到自己的像素预算 | 框是归一化的，位置仍准；细线会丢 |
+| `matting` 十几秒 | 每个 `<OBJ>` 解一张掩码，耗时随框数线性增长 | 单目标用 `segmentation` |
+| 跨两次调用拼不出完整主体 | `compose` 只作用于**单次**调用 | 多调用时自己 union 掩码，别请求 `compose` |
+| 主体右边被硬边切断 | 原图里就被画幅截断（`touches_edge: true`） | 抠图补不出来，只能生成式补全 |
+| 远程/异网不可达 | 服务只绑 LAN | 用 `WEVISONE_REMOTE_URL` 代理或 VPN |
+
+### 7.6 质量判据（不读图）
+
+看 `stats`，不看 PNG：
+
+- `verdict != "ok"` → 不交付，报 `problems`
+- `coverage` 0.01–0.9、`alpha_max ≥ 0.9`、`touches_edge` 应为 `false`
+- **抠图内部必须是 alpha 255**。出现 254 就是编码 bug（2026-11-17 修过：`astype(uint8)` 截断，
+  导致所有抠图内部只有 99.6% 不透明，换背景发灰）。回归检查：
+  `np.asarray(Image.open(p).getchannel('A')).max() == 255`
+
+### 7.7 一次改动的完整发版动作
+
+**插件**：升 `package.json` 版本 → CHANGELOG 记一行 → `node test/save-dir.mjs` 全绿 →
+推 submodule → 主仓库 bump submodule 指针并推 → `rsync` 到本机 profile → 告诉用户
+「重启后调 doctor 确认 version」。
+
+**服务端**：`scp` 到 `dell-16-plus:C:/Users/PeiJingbo/MyCode/WeVisOne-VL-MCP/wevisone_mcp/` →
+`ssh … scripts/serve.ps1 -BindHost 0.0.0.0 -TokenFile .token` 重启 → **真机跑一次调用**验证，
+不能只跑单元测试。
+
+### 7.8 交付前自检
+
+- [ ] 改完是否验证过（真机一次调用，不是只看代码）
+- [ ] 版本号是否升了，`doctor.version` 是否等于 `package.json`
+- [ ] CHANGELOG 是否有一行
+- [ ] 结论里是否区分了「实测通过」与「推断」
+
 ## 变更记录
 
 | 日期 | 版本 | 变更 |
 |---|---|---|
 | 2026-11-16 | v0.1 | 初始契约 |
+| 2026-11-17 | v0.2 | 增 §7 生产运行与实测迭代；§0 状态改为生产实测；skill 冻结判定 |
