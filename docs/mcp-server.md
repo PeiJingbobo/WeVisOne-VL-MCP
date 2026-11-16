@@ -264,15 +264,16 @@ curl -s -X POST -H "Authorization: Bearer $TOK" -H "Content-Type: application/js
   "boxes": [[0.03, 0.454, 0.964, 0.876]], "box_count": 1,
   "artifacts": [{"index": 0, "url": "/artifacts/…", "bytes": 23538, "content_type": "image/png",
                  "stats": {"coverage": 0.26, "alpha_max": 1.0, "bbox": [19, 290, 617, 560],
-                           "touches_edge": false, "size": [640, 640]}}],
+                           "touches_edge": false, "size": [640, 640], "verdict": "ok"}}],
   "artifact_count": 1, "latency_s": 4.16
 }
 ```
 
 - 坐标归一化 0–1；目标不存在时 `rejected: true` 且 `boxes` 为空
 - 掩码不内联，只给相对 URL（10 分钟过期）
-- `stats` 是服务端对掩码的统计（覆盖度、alpha 极值、包围盒、是否触边）——
-  调用方据此判断蒙版是否可用，**不需要下载并查看图片**
+- `stats` 是服务端对掩码的统计（覆盖度、alpha 极值、包围盒、是否触边），外加
+  `verdict`（`ok` / `suspect` + `problems`）—— 调用方比一次字符串就知道掩码能不能用，
+  **不需要下载并查看图片**
 - 错误统一 `{"ok": false, "error": "..."}`
 
 命令行客户端（只需要标准库）：

@@ -215,6 +215,22 @@ def _mask_stats(mask: Any) -> dict[str, Any]:
         )
     else:
         stats["touches_edge"] = False
+
+    # An explicit verdict, so a caller never has to open the PNG to decide whether the
+    # matte is usable. Empty problems == ship it.
+    problems = []
+    if not cols.size:
+        problems.append("empty mask")
+    else:
+        if coverage < 0.01:
+            problems.append("coverage below 1%")
+        if coverage > 0.95:
+            problems.append("mask covers almost the whole frame")
+        if not stats["touches_edge"] and float(alpha.max()) < 0.9:
+            problems.append("alpha never reaches 0.9")
+    stats["verdict"] = "ok" if not problems else "suspect"
+    if problems:
+        stats["problems"] = problems
     return stats
 
 
