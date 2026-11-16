@@ -1,0 +1,32 @@
+# --- secrets & runtime state (never commit) ---------------------------------
+.token
+*.token
+.autostart
+uploads/
+artifacts/
+
+# --- logs -------------------------------------------------------------------
+*.log
+*.err
+
+# --- local backups / scratch ------------------------------------------------
+*.bak-*
+*.bak
+.DS_Store
+node_modules/
+vendor/
+*.tgz
+
+# --- python -----------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# --- keep the submodule path tracked ----------------------------------------
+!plugin/dsh-wevisone-mcp-plugin
+
+# --- one-off SDK probes (kept locally, not part of the project) --------------
+scripts/probe_*.py

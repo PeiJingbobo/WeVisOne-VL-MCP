@@ -1,0 +1,12 @@
+{
+  "name": "dsh-wevisone-plugin-harness",
+  "private": true,
+  "type": "module",
+  "description": "Boots the real DSH tool registry and asks it to accept the plugin.",
+  "dependencies": {
+    "@deepseek-ai/cordis": "4.1.0",
+    "@deepseek-ai/dsh-system-prompt": "0.1.1-rc.2",
+    "@deepseek-ai/dsh-tools": "0.1.1-rc.2",
+    "@wevisone/dsh-wevisone-mcp-plugin": "file:../dsh-wevisone-mcp-plugin"
+  }
+}
