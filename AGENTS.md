@@ -153,6 +153,7 @@ Python `snake_case`；MCP 工具名统一 `wevisone_` 前缀；环境变量统�
 - REST 逃生门：`POST /predict`（JSON 入参同工具，返回同样的 JSON）供插件与非 MCP 客户端使用；与工具共用 `run_predict()`，不得各写一套。
 - `boxes` 必须有值：引擎结果优先，为空且无掩码时由 `shaping.parse_boxes()` 从 `response` 回退解析（上游 `parse_seg_boxes` 只认 `<OBJ>`，会把纯检测回答的框丢掉）；像素任务不回退，保持与 `artifacts` 对齐。
 - 两种角色：本地模式加载模型；设置 `WEVISONE_REMOTE_URL` 后进入远端模式，`/mcp` `/predict` `/upload` `/artifacts` 全部转发且**不得**导入 torch。
+- **插件每次改动必须升版本号**（`plugin/dsh-wevisone-mcp-plugin/package.json`）并在 CHANGELOG 记一行；运行时版本由 `wevisone_doctor` 的 `version` 暴露，`test/save-dir.mjs` 断言两者一致。别人只靠这个判断是否真的装了新版。
 - 文档分工：`docs/mcp-server.md` 面向所有 MCP/REST 使用者，`docs/dsh-plugin.md` 只写 DSH 插件；README 只做索引，不重复细节。
 - 错误：以 `{"ok": false, "error": "..."}` 返回，不抛裸异常给客户端。
 
